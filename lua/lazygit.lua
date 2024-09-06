@@ -13,6 +13,11 @@ vim.g.lazygit_opened = 0
 local prev_win = -1
 local win = -1
 local buffer = -1
+local on_exit_handlers = {}
+
+local function add_on_exit(handler)
+  table.insert(on_exit_handlers, handler)
+end
 
 --- on_exit callback function to delete the open buffer when lazygit exits in a neovim terminal
 local function on_exit(job_id, code, event)
@@ -34,6 +39,10 @@ local function on_exit(job_id, code, event)
     end
     buffer = -1
     win = -1
+  end
+
+  for _, handler in pairs(on_exit_handlers) do
+    handler()
   end
 end
 
@@ -67,7 +76,8 @@ local function lazygitgetconfigpath()
     elseif fn.empty(fn.glob(vim.g.lazygit_config_file_path)) == 0 then
       return vim.g.lazygit_config_file_path
     else
-      print("lazygit: custom config file path: '" .. vim.g.lazygit_config_file_path .. "' could not be found. Returning default config")
+      print("lazygit: custom config file path: '" ..
+        vim.g.lazygit_config_file_path .. "' could not be found. Returning default config")
       return default_config_path
     end
   else
@@ -96,7 +106,7 @@ local function lazygit(path)
   if vim.g.lazygit_use_custom_config_file_path == 1 then
     local config_path = lazygitgetconfigpath()
     if type(config_path) == "table" then
-     config_path = table.concat(config_path, ",")
+      config_path = table.concat(config_path, ",")
     end
     cmd = cmd .. " -ucf '" .. config_path .. "'" -- quote config_path to avoid whitespace errors
   end
@@ -153,14 +163,13 @@ local function lazygitconfig()
     vim.ui.select(
       config_file,
       { prompt = "select config file to edit" },
-      function (path)
+      function(path)
         open_or_create_config(path)
       end
     )
   else
     open_or_create_config(config_file)
   end
-
 end
 
 return {
@@ -170,4 +179,5 @@ return {
   lazygitfiltercurrentfile = lazygitfiltercurrentfile,
   lazygitconfig = lazygitconfig,
   project_root_dir = project_root_dir,
+  add_on_exit = add_on_exit,
 }
